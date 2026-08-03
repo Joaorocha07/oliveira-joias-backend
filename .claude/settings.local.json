@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//d/projetos/oliveira-joias-frontend/**)",
+      "Bash(npm --version)",
+      "Bash(npm install *)",
+      "Bash(npm view *)",
+      "Bash(npx tsc *)",
+      "Bash(npm ls *)",
+      "Bash(curl -s http://localhost:3099/health)",
+      "PowerShell(Get-NetTCPConnection *)"
+    ]
+  }
+}
