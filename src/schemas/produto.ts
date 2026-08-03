@@ -22,6 +22,7 @@ export const criarProdutoSchema = z.object({
   descricao: z.string().trim().min(1, 'Descrição é obrigatória'),
   valor: z.coerce.number().min(0, 'Valor deve ser maior ou igual a zero'),
   parcelas: optionalNumber(),
+  destaque: z.preprocess((v) => v === 'true' || v === true, z.boolean()).default(false),
 })
 
 export type CriarProdutoInput = z.infer<typeof criarProdutoSchema>

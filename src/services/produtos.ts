@@ -46,10 +46,60 @@ export async function criarProduto(
       descricao: input.descricao,
       valor: input.valor,
       parcelas: input.parcelas ?? null,
+      destaque: input.destaque,
       imagens: urls,
     })
     .select('id, slug')
     .single()
+
+  if (error) return { data: null, error: error.message }
+  return { data, error: null }
+}
+
+export type ProdutoCatalogo = {
+  id: string
+  nome: string
+  slug: string
+  categoria: string
+  linha: string | null
+  material: string
+  largura: string | null
+  descricao: string
+  valor: number
+  parcelas: number | null
+  imagens: string[]
+  destaque: boolean
+  ativo: boolean
+  created_at: string
+}
+
+export async function listarProdutos(filtros: {
+  categoria?: string
+  destaque?: boolean
+}): Promise<{ data: ProdutoCatalogo[] | null; error: string | null }> {
+  let query = supabase
+    .from('catalogo_produtos')
+    .select('*')
+    .eq('ativo', true)
+    .order('created_at', { ascending: false })
+
+  if (filtros.categoria) query = query.eq('categoria', filtros.categoria)
+  if (filtros.destaque !== undefined) query = query.eq('destaque', filtros.destaque)
+
+  const { data, error } = await query
+  if (error) return { data: null, error: error.message }
+  return { data, error: null }
+}
+
+export async function buscarProdutoPorSlug(
+  slug: string,
+): Promise<{ data: ProdutoCatalogo | null; error: string | null }> {
+  const { data, error } = await supabase
+    .from('catalogo_produtos')
+    .select('*')
+    .eq('slug', slug)
+    .eq('ativo', true)
+    .maybeSingle()
 
   if (error) return { data: null, error: error.message }
   return { data, error: null }

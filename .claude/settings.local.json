@@ -8,7 +8,9 @@
       "Bash(npx tsc *)",
       "Bash(npm ls *)",
       "Bash(curl -s http://localhost:3099/health)",
-      "PowerShell(Get-NetTCPConnection *)"
+      "PowerShell(Get-NetTCPConnection *)",
+      "Bash(npx tsx *)",
+      "Bash(curl -s http://localhost:3001/api/produtos)"
     ]
   }
 }

@@ -37,6 +37,10 @@ create policy "catalogo_produtos_select_public"
   to anon, authenticated
   using (ativo = true);
 
+-- RLS policy sozinha não basta: sem o GRANT abaixo, o Postgres nega o
+-- acesso à tabela antes mesmo de avaliar a policy.
+grant select on public.catalogo_produtos to anon, authenticated;
+
 -- Sem policy de insert/update/delete para anon/authenticated: a criação
 -- de produtos é feita pelo backend (oliveira-joias-backend) usando a
 -- service_role key, que ignora RLS por padrão no Supabase.

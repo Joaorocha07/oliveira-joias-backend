@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import multer from 'multer'
 import { criarProdutoSchema } from '../schemas/produto'
-import { criarProduto } from '../services/produtos'
+import { criarProduto, listarProdutos, buscarProdutoPorSlug } from '../services/produtos'
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -16,6 +16,35 @@ const upload = multer({
 })
 
 export const produtosRouter = Router()
+
+// GET /api/produtos — lista produtos ativos do catálogo
+// Query params opcionais: categoria, destaque=true|false
+produtosRouter.get('/', async (req, res) => {
+  const categoria = typeof req.query.categoria === 'string' ? req.query.categoria : undefined
+  const destaqueRaw = typeof req.query.destaque === 'string' ? req.query.destaque : undefined
+  const destaque = destaqueRaw === undefined ? undefined : destaqueRaw === 'true'
+
+  const { data, error } = await listarProdutos({ categoria, destaque })
+  if (error) {
+    res.status(500).json({ error })
+    return
+  }
+  res.json({ data })
+})
+
+// GET /api/produtos/:slug — busca um produto ativo pelo slug
+produtosRouter.get('/:slug', async (req, res) => {
+  const { data, error } = await buscarProdutoPorSlug(req.params.slug)
+  if (error) {
+    res.status(500).json({ error })
+    return
+  }
+  if (!data) {
+    res.status(404).json({ error: 'Produto não encontrado' })
+    return
+  }
+  res.json({ data })
+})
 
 // POST /api/produtos — multipart/form-data
 // Campos: nome, categoria, linha?, material, largura?, descricao, valor, parcelas?
