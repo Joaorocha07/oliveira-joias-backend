@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import multer from 'multer'
-import { criarProdutoSchema } from '../schemas/produto'
-import { criarProduto, listarProdutos, buscarProdutoPorSlug } from '../services/produtos'
+import { criarProdutoSchema, atualizarProdutoSchema } from '../schemas/produto'
+import { criarProduto, listarProdutos, buscarProdutoPorSlug, atualizarProduto, excluirProduto } from '../services/produtos'
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -58,11 +58,62 @@ produtosRouter.post('/', upload.array('imagens', 10), async (req, res) => {
 
   const arquivos = (req.files as Express.Multer.File[] | undefined) ?? []
 
-  const { data, error } = await criarProduto(parsed.data, arquivos)
+  try {
+    const { data, error } = await criarProduto(parsed.data, arquivos)
+    if (error) {
+      res.status(500).json({ error })
+      return
+    }
+    res.status(201).json({ data })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Erro ao cadastrar produto' })
+  }
+})
+
+// PUT /api/produtos/:id — multipart/form-data
+// Mesmos campos do POST + imagens_manter (JSON com URLs das imagens existentes a preservar).
+// Novas imagens enviadas em "imagens" são anexadas às de imagens_manter.
+produtosRouter.put('/:id', upload.array('imagens', 10), async (req, res) => {
+  const parsed = atualizarProdutoSchema.safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Dados inválidos', detalhes: parsed.error.flatten().fieldErrors })
+    return
+  }
+
+  const { id } = req.params
+  if (!id) {
+    res.status(400).json({ error: 'ID do produto é obrigatório' })
+    return
+  }
+
+  const arquivos = (req.files as Express.Multer.File[] | undefined) ?? []
+
+  try {
+    const { data, error } = await atualizarProduto(id, parsed.data, arquivos)
+    if (error) {
+      res.status(500).json({ error })
+      return
+    }
+    res.json({ data })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Erro ao atualizar produto' })
+  }
+})
+
+// DELETE /api/produtos/:id
+produtosRouter.delete('/:id', async (req, res) => {
+  const { id } = req.params
+  if (!id) {
+    res.status(400).json({ error: 'ID do produto é obrigatório' })
+    return
+  }
+
+  const { error } = await excluirProduto(id)
   if (error) {
     res.status(500).json({ error })
     return
   }
-
-  res.status(201).json({ data })
+  res.status(204).send()
 })

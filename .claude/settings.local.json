@@ -10,7 +10,11 @@
       "Bash(curl -s http://localhost:3099/health)",
       "PowerShell(Get-NetTCPConnection *)",
       "Bash(npx tsx *)",
-      "Bash(curl -s http://localhost:3001/api/produtos)"
+      "Bash(curl -s http://localhost:3001/api/produtos)",
+      "Bash(awk -F'<redacted-len:' '{if\\(NF>1\\){len=length\\($2\\)-1; print $1\"=<redacted, len=\"len\">\"} else print $0}')",
+      "Bash(python3 *)",
+      "Bash(node *)",
+      "Bash(npm run *)"
     ]
   }
 }

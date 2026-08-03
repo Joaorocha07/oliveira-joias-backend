@@ -26,3 +26,23 @@ export const criarProdutoSchema = z.object({
 })
 
 export type CriarProdutoInput = z.infer<typeof criarProdutoSchema>
+
+// imagens_manter chega como string JSON (array de URLs das imagens existentes que devem
+// permanecer) — o que não estiver nessa lista é descartado; novas imagens enviadas no
+// multipart são anexadas a essa lista.
+export const atualizarProdutoSchema = criarProdutoSchema.extend({
+  imagens_manter: z.preprocess((v) => {
+    if (v === undefined) return []
+    if (typeof v === 'string') {
+      try {
+        const parsed = JSON.parse(v)
+        return Array.isArray(parsed) ? parsed : [v]
+      } catch {
+        return [v]
+      }
+    }
+    return v
+  }, z.array(z.string())),
+})
+
+export type AtualizarProdutoInput = z.infer<typeof atualizarProdutoSchema>

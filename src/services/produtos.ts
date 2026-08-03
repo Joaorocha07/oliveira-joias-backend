@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { uploadImagemProduto } from '../lib/r2'
-import type { CriarProdutoInput } from '../schemas/produto'
+import type { CriarProdutoInput, AtualizarProdutoInput } from '../schemas/produto'
 
 function gerarSlug(nome: string): string {
   return nome
@@ -89,6 +89,41 @@ export async function listarProdutos(filtros: {
   const { data, error } = await query
   if (error) return { data: null, error: error.message }
   return { data, error: null }
+}
+
+export async function atualizarProduto(
+  id: string,
+  input: AtualizarProdutoInput,
+  imagens: ImagemUpload[],
+): Promise<{ data: { id: string; slug: string } | null; error: string | null }> {
+  const urls = await Promise.all(imagens.map((imagem) => uploadImagemProduto(imagem, id)))
+
+  const { data, error } = await supabase
+    .from('catalogo_produtos')
+    .update({
+      nome: input.nome,
+      categoria: input.categoria,
+      linha: input.linha ?? null,
+      material: input.material,
+      largura: input.largura ?? null,
+      descricao: input.descricao,
+      valor: input.valor,
+      parcelas: input.parcelas ?? null,
+      destaque: input.destaque,
+      imagens: [...input.imagens_manter, ...urls],
+    })
+    .eq('id', id)
+    .select('id, slug')
+    .single()
+
+  if (error) return { data: null, error: error.message }
+  return { data, error: null }
+}
+
+export async function excluirProduto(id: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.from('catalogo_produtos').delete().eq('id', id)
+  if (error) return { error: error.message }
+  return { error: null }
 }
 
 export async function buscarProdutoPorSlug(
