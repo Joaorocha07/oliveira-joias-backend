@@ -40,7 +40,7 @@ popupsRouter.post('/', upload.single('imagem'), async (req, res) => {
     return
   }
   const imagem = req.file
-    ? { buffer: req.file.buffer, mimetype: req.file.mimetype, originalname: req.file.originalname }
+    ? { buffer: req.file.buffer, mimetype: req.file.mimetype ?? 'image/jpeg', originalname: req.file.originalname ?? 'image' }
     : undefined
   const { data, error } = await criarPopup(result.data, imagem)
   if (error) { res.status(500).json({ error }); return }
@@ -54,7 +54,7 @@ popupsRouter.put('/:id', upload.single('imagem'), async (req, res) => {
     return
   }
   const imagem = req.file
-    ? { buffer: req.file.buffer, mimetype: req.file.mimetype, originalname: req.file.originalname }
+    ? { buffer: req.file.buffer, mimetype: req.file.mimetype ?? 'image/jpeg', originalname: req.file.originalname ?? 'image' }
     : undefined
   const { data, error } = await atualizarPopup(req.params.id, result.data, imagem)
   if (error) { res.status(500).json({ error }); return }
