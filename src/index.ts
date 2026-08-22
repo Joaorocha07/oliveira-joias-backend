@@ -3,6 +3,7 @@ import cors from 'cors'
 import { env } from './lib/env'
 import { produtosRouter } from './routes/produtos'
 import { categoriasRouter } from './routes/categorias'
+import { configRouter } from './routes/config'
 
 const app = express()
 
@@ -15,6 +16,7 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/produtos', produtosRouter)
 app.use('/api/categorias', categoriasRouter)
+app.use('/api/config', configRouter)
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
