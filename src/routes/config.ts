@@ -6,16 +6,17 @@ export const configRouter = Router()
 
 configRouter.get('/', async (_req, res) => {
   const { data, error } = await buscarConfig()
-  if (error) return res.status(500).json({ error })
+  if (error) { res.status(500).json({ error }); return }
   res.json({ data })
 })
 
 configRouter.put('/', async (req, res) => {
   const result = atualizarConfigSchema.safeParse(req.body)
   if (!result.success) {
-    return res.status(400).json({ error: result.error.errors[0]?.message ?? 'Dados inválidos' })
+    res.status(400).json({ error: 'Dados inválidos', detalhes: result.error.flatten().fieldErrors })
+    return
   }
   const { error } = await atualizarConfig(result.data)
-  if (error) return res.status(500).json({ error })
+  if (error) { res.status(500).json({ error }); return }
   res.json({ data: { ok: true } })
 })
