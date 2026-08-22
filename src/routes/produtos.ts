@@ -47,7 +47,7 @@ produtosRouter.put('/reordenar', async (req, res) => {
 
 // GET /api/produtos/:slug — busca um produto ativo pelo slug
 produtosRouter.get('/:slug', async (req, res) => {
-  const { data, error } = await buscarProdutoPorSlug(req.params.slug)
+  const { data, error } = await buscarProdutoPorSlug(req.params.slug!)
   if (error) {
     res.status(500).json({ error })
     return

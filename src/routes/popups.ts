@@ -56,13 +56,13 @@ popupsRouter.put('/:id', upload.single('imagem'), async (req, res) => {
   const imagem = req.file
     ? { buffer: req.file.buffer, mimetype: req.file.mimetype ?? 'image/jpeg', originalname: req.file.originalname ?? 'image' }
     : undefined
-  const { data, error } = await atualizarPopup(req.params.id, result.data, imagem)
+  const { data, error } = await atualizarPopup(req.params.id!, result.data, imagem)
   if (error) { res.status(500).json({ error }); return }
   res.json({ data })
 })
 
 popupsRouter.delete('/:id', async (req, res) => {
-  const { error } = await excluirPopup(req.params.id)
+  const { error } = await excluirPopup(req.params.id!)
   if (error) { res.status(500).json({ error }); return }
   res.status(204).send()
 })

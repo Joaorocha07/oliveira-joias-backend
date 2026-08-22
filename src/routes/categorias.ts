@@ -30,14 +30,14 @@ categoriasRouter.put('/:id', async (req, res) => {
     res.status(400).json({ error: 'Dados inválidos', detalhes: parsed.error.flatten().fieldErrors })
     return
   }
-  const { data, error } = await atualizarCategoria(req.params.id, parsed.data)
+  const { data, error } = await atualizarCategoria(req.params.id!, parsed.data)
   if (error) { res.status(400).json({ error }); return }
   res.json({ data })
 })
 
 // DELETE /api/categorias/:id
 categoriasRouter.delete('/:id', async (req, res) => {
-  const { error } = await excluirCategoria(req.params.id)
+  const { error } = await excluirCategoria(req.params.id!)
   if (error) { res.status(500).json({ error }); return }
   res.status(204).send()
 })
