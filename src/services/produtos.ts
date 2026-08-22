@@ -70,6 +70,7 @@ export type ProdutoCatalogo = {
   imagens: string[]
   destaque: boolean
   ativo: boolean
+  ordem: number | null
   created_at: string
 }
 
@@ -81,6 +82,7 @@ export async function listarProdutos(filtros: {
     .from('catalogo_produtos')
     .select('*')
     .eq('ativo', true)
+    .order('ordem', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false })
 
   if (filtros.categoria) query = query.eq('categoria', filtros.categoria)
@@ -89,6 +91,18 @@ export async function listarProdutos(filtros: {
   const { data, error } = await query
   if (error) return { data: null, error: error.message }
   return { data, error: null }
+}
+
+export async function reordenarProdutos(
+  itens: { id: string; ordem: number }[],
+): Promise<{ error: string | null }> {
+  const updates = itens.map(({ id, ordem }) =>
+    supabase.from('catalogo_produtos').update({ ordem }).eq('id', id),
+  )
+  const results = await Promise.all(updates)
+  const firstError = results.find((r) => r.error)
+  if (firstError?.error) return { error: firstError.error.message }
+  return { error: null }
 }
 
 export async function atualizarProduto(

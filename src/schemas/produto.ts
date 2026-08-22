@@ -1,7 +1,5 @@
 import { z } from 'zod'
 
-export const categoriaProduto = ['alianças', 'anéis', 'correntes', 'serviços'] as const
-
 // multipart/form-data chega sempre como string — campo vazio ("") vira
 // undefined antes da validação, e os campos numéricos são coagidos.
 const optionalText = () =>
@@ -15,7 +13,7 @@ const optionalNumber = () =>
 
 export const criarProdutoSchema = z.object({
   nome: z.string().trim().min(1, 'Nome é obrigatório'),
-  categoria: z.enum(categoriaProduto, { error: 'Categoria é obrigatória' }),
+  categoria: z.string().trim().min(1, 'Categoria é obrigatória'),
   linha: optionalText(),
   material: z.string().trim().min(1, 'Material é obrigatório'),
   largura: optionalText(),
