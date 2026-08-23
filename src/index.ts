@@ -3,6 +3,7 @@ import cors from 'cors'
 import { env } from './lib/env'
 import { produtosRouter } from './routes/produtos'
 import { categoriasRouter } from './routes/categorias'
+import { acabamentosRouter } from './routes/acabamentos'
 import { configRouter } from './routes/config'
 import { popupsRouter } from './routes/popups'
 
@@ -17,6 +18,7 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/produtos', produtosRouter)
 app.use('/api/categorias', categoriasRouter)
+app.use('/api/acabamentos', acabamentosRouter)
 app.use('/api/config', configRouter)
 app.use('/api/popups', popupsRouter)
 
