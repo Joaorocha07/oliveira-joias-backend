@@ -46,6 +46,7 @@ export async function criarProduto(
       descricao: input.descricao,
       valor: input.valor,
       parcelas: input.parcelas ?? null,
+      valor_parcela: input.valor_parcela ?? null,
       destaque: input.destaque,
       imagens: urls,
     })
@@ -67,6 +68,7 @@ export type ProdutoCatalogo = {
   descricao: string
   valor: number
   parcelas: number | null
+  valor_parcela: number | null
   imagens: string[]
   destaque: boolean
   ativo: boolean
@@ -123,6 +125,7 @@ export async function atualizarProduto(
       descricao: input.descricao,
       valor: input.valor,
       parcelas: input.parcelas ?? null,
+      valor_parcela: input.valor_parcela ?? null,
       destaque: input.destaque,
       imagens: [...input.imagens_manter, ...urls],
     })

@@ -11,6 +11,12 @@ const optionalNumber = () =>
     z.coerce.number().int().positive().optional(),
   )
 
+const optionalDecimal = () =>
+  z.preprocess(
+    (v) => (v === '' || v === undefined || v === null ? undefined : v),
+    z.coerce.number().positive().optional(),
+  )
+
 export const criarProdutoSchema = z.object({
   nome: z.string().trim().min(1, 'Nome é obrigatório'),
   categoria: z.string().trim().min(1, 'Categoria é obrigatória'),
@@ -20,6 +26,7 @@ export const criarProdutoSchema = z.object({
   descricao: z.string().trim().min(1, 'Descrição é obrigatória'),
   valor: z.coerce.number().min(0, 'Valor deve ser maior ou igual a zero'),
   parcelas: optionalNumber(),
+  valor_parcela: optionalDecimal(),
   destaque: z.preprocess((v) => v === 'true' || v === true, z.boolean()).default(false),
 })
 
