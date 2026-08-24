@@ -17,6 +17,8 @@ const optionalDecimal = () =>
     z.coerce.number().positive().optional(),
   )
 
+const faqItem = z.object({ pergunta: z.string(), resposta: z.string() })
+
 export const criarProdutoSchema = z.object({
   nome: z.string().trim().min(1, 'Nome é obrigatório'),
   categoria: z.string().trim().min(1, 'Categoria é obrigatória'),
@@ -28,6 +30,17 @@ export const criarProdutoSchema = z.object({
   parcelas: optionalNumber(),
   valor_parcela: optionalDecimal(),
   destaque: z.preprocess((v) => v === 'true' || v === true, z.boolean()).default(false),
+  info_produto: optionalText(),
+  voce_sabia: optionalText(),
+  faq: z.preprocess(
+    (v) => {
+      if (!v || v === '') return []
+      if (typeof v === 'string') { try { return JSON.parse(v) } catch { return [] } }
+      if (Array.isArray(v)) return v
+      return []
+    },
+    z.array(faqItem).default([]),
+  ),
 })
 
 export type CriarProdutoInput = z.infer<typeof criarProdutoSchema>

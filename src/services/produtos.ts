@@ -49,6 +49,9 @@ export async function criarProduto(
       valor_parcela: input.valor_parcela ?? null,
       destaque: input.destaque,
       imagens: urls,
+      info_produto: input.info_produto ?? null,
+      voce_sabia: input.voce_sabia ?? null,
+      faq: input.faq && input.faq.length > 0 ? input.faq : null,
     })
     .select('id, slug')
     .single()
@@ -73,6 +76,9 @@ export type ProdutoCatalogo = {
   destaque: boolean
   ativo: boolean
   ordem: number | null
+  info_produto: string | null
+  voce_sabia: string | null
+  faq: Array<{ pergunta: string; resposta: string }> | null
   created_at: string
 }
 
@@ -128,6 +134,9 @@ export async function atualizarProduto(
       valor_parcela: input.valor_parcela ?? null,
       destaque: input.destaque,
       imagens: [...input.imagens_manter, ...urls],
+      info_produto: input.info_produto ?? null,
+      voce_sabia: input.voce_sabia ?? null,
+      faq: input.faq && input.faq.length > 0 ? input.faq : null,
     })
     .eq('id', id)
     .select('id, slug')
