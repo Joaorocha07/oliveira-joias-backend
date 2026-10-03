@@ -187,16 +187,41 @@ async function doConnect(index: number): Promise<void> {
 
   sock.ev.on('creds.update', saveCreds)
 
+  // Mapa @lid → JID @s.whatsapp.net (novo formato de privacidade do WhatsApp)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const lidToJid: Map<string, string> = new Map()
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const indexContacts = (contacts: any[]) => {
+    for (const c of contacts) {
+      if (c.lid && c.id) {
+        lidToJid.set(String(c.lid), String(c.id))
+      }
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sock.ev.on('contacts.upsert', (contacts: any[]) => indexContacts(contacts))
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sock.ev.on('contacts.update', (updates: any[]) => indexContacts(updates))
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sock.ev.on('messages.upsert', async ({ messages, type }: { messages: any[]; type: string }) => {
     console.log(`[WhatsApp slot-${index}] messages.upsert — tipo: ${type}, qtd: ${messages.length}`)
     for (const msg of messages) {
-      const jid: string = msg.key?.remoteJid ?? ''
+      const rawJid: string = msg.key?.remoteJid ?? ''
       const fromMe: boolean = msg.key?.fromMe ?? false
-      console.log(`[WhatsApp slot-${index}] >> jid: ${jid}, fromMe: ${fromMe}`)
+
+      // Resolve @lid para @s.whatsapp.net quando possível
+      const jid = rawJid.endsWith('@lid') ? (lidToJid.get(rawJid) ?? rawJid) : rawJid
+      console.log(`[WhatsApp slot-${index}] >> rawJid: ${rawJid} → resolved: ${jid}, fromMe: ${fromMe}`)
 
       if (fromMe) continue
-      if (!jid || jid.endsWith('@g.us') || jid.endsWith('@broadcast') || jid.endsWith('@lid')) continue
+      if (!jid || jid.endsWith('@g.us') || jid.endsWith('@broadcast')) continue
+      if (jid.endsWith('@lid')) {
+        console.log(`[WhatsApp slot-${index}] @lid sem mapeamento ainda: ${rawJid}`)
+        continue
+      }
 
       const phone = jid.replace('@s.whatsapp.net', '').replace(/\D/g, '')
       const name: string | null = msg.pushName ?? null
