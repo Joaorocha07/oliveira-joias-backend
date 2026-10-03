@@ -188,7 +188,8 @@ async function doConnect(index: number): Promise<void> {
   sock.ev.on('creds.update', saveCreds)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  sock.ev.on('messages.upsert', async ({ messages }: { messages: any[] }) => {
+  sock.ev.on('messages.upsert', async ({ messages, type }: { messages: any[]; type: string }) => {
+    console.log(`[WhatsApp slot-${index}] messages.upsert — tipo: ${type}, qtd: ${messages.length}`)
     for (const msg of messages) {
       if (msg.key?.fromMe) continue
       const jid: string = msg.key?.remoteJid ?? ''
@@ -196,27 +197,47 @@ async function doConnect(index: number): Promise<void> {
 
       const phone = jid.replace('@s.whatsapp.net', '')
       const name: string | null = msg.pushName ?? null
+      console.log(`[WhatsApp slot-${index}] Mensagem recebida de ${phone} (${name ?? 'sem nome'})`)
 
       try {
-        await saveContact(s, phone, name)
+        await saveContact(s, phone, name, index)
       } catch (err) {
-        console.error(`[WhatsApp slot-${index}] Erro ao salvar contato:`, err)
+        console.error(`[WhatsApp slot-${index}] Erro ao salvar contato ${phone}:`, err)
       }
     }
   })
 }
 
-async function saveContact(s: SlotState, rawPhone: string, pushName: string | null): Promise<void> {
+async function saveContact(s: SlotState, rawPhone: string, pushName: string | null, slotIndex?: number): Promise<void> {
+  const tag = slotIndex !== undefined ? `[WhatsApp slot-${slotIndex}]` : '[WhatsApp]'
   const phone = rawPhone.replace(/\D/g, '')
   const whatsappNumber = `+${phone}`
 
+  // Busca ou cria a origem 'WhatsApp' automaticamente
   if (!s.originId) {
-    const { data } = await supabase
+    const { data: found } = await supabase
       .from('origens_cliente')
       .select('id')
       .ilike('nome', 'whatsapp')
       .maybeSingle()
-    s.originId = (data as { id: string } | null)?.id ?? null
+
+    if (found) {
+      s.originId = (found as { id: string }).id
+      console.log(`${tag} Origem WhatsApp encontrada: ${s.originId}`)
+    } else {
+      // Cria a origem se não existir
+      const { data: created, error: createErr } = await supabase
+        .from('origens_cliente')
+        .insert({ nome: 'WhatsApp', ativo: true })
+        .select('id')
+        .single()
+      if (createErr) {
+        console.error(`${tag} Erro ao criar origem WhatsApp:`, createErr.message)
+      } else {
+        s.originId = (created as { id: string }).id
+        console.log(`${tag} Origem WhatsApp criada: ${s.originId}`)
+      }
+    }
   }
 
   const { data: existing } = await supabase
@@ -225,9 +246,12 @@ async function saveContact(s: SlotState, rawPhone: string, pushName: string | nu
     .or(`whatsapp.eq.${whatsappNumber},telefone.eq.${whatsappNumber}`)
     .maybeSingle()
 
-  if (existing) return
+  if (existing) {
+    console.log(`${tag} Contato ${whatsappNumber} já existe, ignorando.`)
+    return
+  }
 
-  await supabase.from('clientes').insert({
+  const { error: insertErr } = await supabase.from('clientes').insert({
     nome: pushName?.trim() || `WhatsApp ${whatsappNumber}`,
     whatsapp: whatsappNumber,
     telefone: whatsappNumber,
@@ -238,6 +262,12 @@ async function saveContact(s: SlotState, rawPhone: string, pushName: string | nu
     origem_id: s.originId,
     ...(s.adminUserId ? { created_by: s.adminUserId } : {}),
   })
+
+  if (insertErr) {
+    console.error(`${tag} Erro ao inserir contato ${whatsappNumber}:`, insertErr.message)
+  } else {
+    console.log(`${tag} Contato salvo: ${whatsappNumber} (${pushName ?? 'sem nome'})`)
+  }
 }
 
 export async function disconnectSlot(index: number): Promise<void> {
