@@ -201,9 +201,35 @@ async function doConnect(index: number): Promise<void> {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  sock.ev.on('contacts.upsert', (contacts: any[]) => indexContacts(contacts))
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sock.ev.on('contacts.update', (updates: any[]) => indexContacts(updates))
+
+  // Ao conectar, o baileys emite contacts.upsert com todos os contatos da agenda.
+  // Aproveitamos para importar quem ainda não existe no sistema.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sock.ev.on('contacts.upsert', async (contacts: any[]) => {
+    indexContacts(contacts) // constrói mapa @lid primeiro (síncrono)
+
+    // Número do próprio slot — não salvar como lead
+    const ownPhone = ((sock.user as any)?.id ?? '').split(':')[0]?.replace(/\D/g, '') ?? ''
+
+    let saved = 0
+    for (const c of contacts) {
+      const jid: string = c.id ?? ''
+      if (!jid.endsWith('@s.whatsapp.net')) continue
+
+      const phone = jid.replace('@s.whatsapp.net', '').replace(/\D/g, '')
+      if (!phone || phone === ownPhone) continue
+
+      const name: string | null = c.name ?? c.notify ?? null
+      try {
+        await saveContact(s, phone, name, index)
+        saved++
+      } catch {}
+    }
+    if (saved > 0 || contacts.length > 0) {
+      console.log(`[WhatsApp slot-${index}] Sync de agenda: ${contacts.length} contatos verificados, ${saved} novos salvos`)
+    }
+  })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sock.ev.on('messages.upsert', async ({ messages, type }: { messages: any[]; type: string }) => {
@@ -274,10 +300,7 @@ async function saveContact(s: SlotState, rawPhone: string, pushName: string | nu
     .or(`whatsapp.eq.${whatsappNumber},telefone.eq.${whatsappNumber}`)
     .maybeSingle()
 
-  if (existing) {
-    console.log(`${tag} Contato ${whatsappNumber} já existe, ignorando.`)
-    return
-  }
+  if (existing) return
 
   const { error: insertErr } = await supabase.from('clientes').insert({
     nome: pushName?.trim() || `WhatsApp ${whatsappNumber}`,
