@@ -191,11 +191,14 @@ async function doConnect(index: number): Promise<void> {
   sock.ev.on('messages.upsert', async ({ messages, type }: { messages: any[]; type: string }) => {
     console.log(`[WhatsApp slot-${index}] messages.upsert — tipo: ${type}, qtd: ${messages.length}`)
     for (const msg of messages) {
-      if (msg.key?.fromMe) continue
       const jid: string = msg.key?.remoteJid ?? ''
-      if (!jid || jid.endsWith('@g.us') || jid.endsWith('@broadcast')) continue
+      const fromMe: boolean = msg.key?.fromMe ?? false
+      console.log(`[WhatsApp slot-${index}] >> jid: ${jid}, fromMe: ${fromMe}`)
 
-      const phone = jid.replace('@s.whatsapp.net', '')
+      if (fromMe) continue
+      if (!jid || jid.endsWith('@g.us') || jid.endsWith('@broadcast') || jid.endsWith('@lid')) continue
+
+      const phone = jid.replace('@s.whatsapp.net', '').replace(/\D/g, '')
       const name: string | null = msg.pushName ?? null
       console.log(`[WhatsApp slot-${index}] Mensagem recebida de ${phone} (${name ?? 'sem nome'})`)
 
