@@ -67,6 +67,8 @@ async function doConnect(index: number): Promise<void> {
   const s = slots[index]
   if (!s) return
 
+  console.log(`[WhatsApp slot-${index}] Iniciando doConnect...`)
+
   // Importação dinâmica: baileys é ESM, o backend é CommonJS
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const baileys: any = await import('@whiskeysockets/baileys')
@@ -76,6 +78,8 @@ async function doConnect(index: number): Promise<void> {
   const { toDataURL } = await import('qrcode')
 
   const sessionDir = path.join(SESSION_BASE, `slot-${index}`)
+  console.log(`[WhatsApp slot-${index}] Session dir: ${sessionDir}`)
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { state: authState, saveCreds } = await useMultiFileAuthState(sessionDir) as any
 
@@ -84,8 +88,10 @@ async function doConnect(index: number): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const v: any = await fetchLatestBaileysVersion()
     version = v.version
-  } catch {
+    console.log(`[WhatsApp slot-${index}] Versão WA: ${version.join('.')}`)
+  } catch (err) {
     version = [2, 3000, 1023372854]
+    console.warn(`[WhatsApp slot-${index}] fetchLatestBaileysVersion falhou, usando fallback ${version.join('.')}:`, err)
   }
 
   const sock = makeWASocket({
@@ -95,6 +101,12 @@ async function doConnect(index: number): Promise<void> {
     logger: noopLogger,
     generateHighQualityLinkPreview: false,
     syncFullHistory: false,
+    // Manter conexão ativa — sem isso a conexão pode cair por inatividade no servidor
+    keepAliveIntervalMs: 15_000,
+    // Identificação como Chrome Desktop para evitar rejeição pelo WhatsApp
+    browser: ['Chrome', 'Desktop', '124.0.0'],
+    // Reduzir janela de mensagens recebidas no reconect (evita flood de histórico)
+    getMessage: async () => undefined,
   })
 
   sockets[index] = sock
@@ -108,6 +120,7 @@ async function doConnect(index: number): Promise<void> {
     }
 
     if (qr) {
+      console.log(`[WhatsApp slot-${index}] QR gerado, aguardando scan...`)
       s.status = 'waiting_qr'
       s.qrBase64 = await (toDataURL as (data: string, opts: object) => Promise<string>)(
         qr, { width: 280, margin: 2 }
@@ -116,15 +129,28 @@ async function doConnect(index: number): Promise<void> {
 
     if (connection === 'close') {
       const code = lastDisconnect?.error?.output?.statusCode
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const errorMsg = (lastDisconnect?.error as any)?.message ?? 'sem mensagem'
+      const DR = DisconnectReason as Record<string, number>
+
+      const reasonName = Object.entries(DR).find(([, v]) => v === code)?.[0] ?? 'desconhecido'
+      console.warn(`[WhatsApp slot-${index}] Conexão fechada. Código: ${code} (${reasonName}), Erro: ${errorMsg}`)
+
       s.status = 'disconnected'
       s.qrBase64 = null
       s.phone = null
       sockets[index] = null
 
-      if (code !== (DisconnectReason as Record<string, number>).loggedOut) {
-        setTimeout(() => connectSlot(index, s.adminUserId ?? undefined), 3000)
+      // Não reconectar se foi logout explícito ou substituição de sessão (outro dispositivo assumiu)
+      const noReconnectCodes = new Set([DR.loggedOut, DR.connectionReplaced])
+      if (noReconnectCodes.has(code as number)) {
+        console.log(`[WhatsApp slot-${index}] Sessão encerrada permanentemente (${reasonName}), não vai reconectar.`)
+      } else {
+        console.log(`[WhatsApp slot-${index}] Tentando reconectar em 5s...`)
+        setTimeout(() => connectSlot(index, s.adminUserId ?? undefined), 5000)
       }
     } else if (connection === 'open') {
+      console.log(`[WhatsApp slot-${index}] Conectado com sucesso!`)
       s.status = 'connected'
       s.qrBase64 = null
       try {
@@ -132,6 +158,7 @@ async function doConnect(index: number): Promise<void> {
         const jid: string = (sock.user as any)?.id ?? ''
         const cleaned = (jid.split(':')[0] ?? '').replace(/\D/g, '')
         if (cleaned) s.phone = `+${cleaned}`
+        console.log(`[WhatsApp slot-${index}] Número vinculado: ${s.phone}`)
       } catch {}
     }
   })
