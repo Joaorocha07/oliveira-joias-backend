@@ -136,18 +136,40 @@ async function doConnect(index: number): Promise<void> {
       const reasonName = Object.entries(DR).find(([, v]) => v === code)?.[0] ?? 'desconhecido'
       console.warn(`[WhatsApp slot-${index}] Conexão fechada. Código: ${code} (${reasonName}), Erro: ${errorMsg}`)
 
-      s.status = 'disconnected'
       s.qrBase64 = null
       s.phone = null
       sockets[index] = null
 
-      // Não reconectar se foi logout explícito ou substituição de sessão (outro dispositivo assumiu)
-      const noReconnectCodes = new Set([DR.loggedOut, DR.connectionReplaced])
-      if (noReconnectCodes.has(code as number)) {
-        console.log(`[WhatsApp slot-${index}] Sessão encerrada permanentemente (${reasonName}), não vai reconectar.`)
+      // Logout explícito ou conflito: encerra a sessão e apaga os arquivos para evitar conflito futuro
+      const permanentCodes = new Set([DR.loggedOut, DR.connectionReplaced])
+      if (permanentCodes.has(code as number)) {
+        s.status = 'disconnected'
+        console.log(`[WhatsApp slot-${index}] Sessão encerrada (${reasonName}), limpando arquivos de sessão...`)
+        import('fs/promises').then(({ rm }) =>
+          rm(path.join(SESSION_BASE, `slot-${index}`), { recursive: true, force: true }).catch(() => {})
+        ).catch(() => {})
+      } else if (code === (DR as Record<string, number>).restartRequired) {
+        // 515: baileys pede reinício após scan do QR — manter 'connecting' para evitar duplo-connect
+        s.status = 'connecting'
+        console.log(`[WhatsApp slot-${index}] Reinício necessário (515), reconectando imediatamente...`)
+        setTimeout(() => {
+          doConnect(index).catch((err) => {
+            console.error(`[WhatsApp slot-${index}] Erro ao reconectar:`, err)
+            const st = slots[index]
+            if (st) st.status = 'disconnected'
+          })
+        }, 1000)
       } else {
+        // Outros erros temporários: reconectar em 5s
+        s.status = 'connecting'
         console.log(`[WhatsApp slot-${index}] Tentando reconectar em 5s...`)
-        setTimeout(() => connectSlot(index, s.adminUserId ?? undefined), 5000)
+        setTimeout(() => {
+          doConnect(index).catch((err) => {
+            console.error(`[WhatsApp slot-${index}] Erro ao reconectar:`, err)
+            const st = slots[index]
+            if (st) st.status = 'disconnected'
+          })
+        }, 5000)
       }
     } else if (connection === 'open') {
       console.log(`[WhatsApp slot-${index}] Conectado com sucesso!`)
