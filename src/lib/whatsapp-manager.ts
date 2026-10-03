@@ -203,16 +203,17 @@ async function doConnect(index: number): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sock.ev.on('contacts.update', (updates: any[]) => indexContacts(updates))
 
-  // Ao conectar, o baileys emite contacts.upsert com todos os contatos da agenda.
-  // Aproveitamos para importar quem ainda não existe no sistema.
+  // Função compartilhada: importa lista de contatos para o sistema
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  sock.ev.on('contacts.upsert', async (contacts: any[]) => {
-    indexContacts(contacts) // constrói mapa @lid primeiro (síncrono)
+  const syncContactsToSystem = async (contacts: any[], source: string) => {
+    console.log(`[WhatsApp slot-${index}] ${source}: ${contacts.length} contatos recebidos`)
+    if (!contacts.length) return
 
-    // Número do próprio slot — não salvar como lead
+    indexContacts(contacts)
+
     const ownPhone = ((sock.user as any)?.id ?? '').split(':')[0]?.replace(/\D/g, '') ?? ''
-
     let saved = 0
+
     for (const c of contacts) {
       const jid: string = c.id ?? ''
       if (!jid.endsWith('@s.whatsapp.net')) continue
@@ -226,8 +227,20 @@ async function doConnect(index: number): Promise<void> {
         saved++
       } catch {}
     }
-    if (saved > 0 || contacts.length > 0) {
-      console.log(`[WhatsApp slot-${index}] Sync de agenda: ${contacts.length} contatos verificados, ${saved} novos salvos`)
+    console.log(`[WhatsApp slot-${index}] ${source}: ${saved} novos contatos salvos no sistema`)
+  }
+
+  // Versões mais novas do baileys entregam contatos via contacts.upsert
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sock.ev.on('contacts.upsert', (contacts: any[]) => {
+    syncContactsToSystem(contacts, 'contacts.upsert').catch(() => {})
+  })
+
+  // Versões mais novas do baileys entregam o histórico (incluindo contatos) via messaging-history.set
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ;(sock.ev as any).on('messaging-history.set', ({ contacts: histContacts }: any) => {
+    if (Array.isArray(histContacts)) {
+      syncContactsToSystem(histContacts, 'messaging-history.set').catch(() => {})
     }
   })
 
