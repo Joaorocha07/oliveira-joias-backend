@@ -15,4 +15,7 @@ export const env = {
   r2SecretAccessKey: required('R2_SECRET_ACCESS_KEY'),
   r2BucketName: required('R2_BUCKET_NAME'),
   r2PublicUrl: required('R2_PUBLIC_URL').replace(/\/$/, ''),
+  // Segredo compartilhado com o frontend para proteger as rotas do WhatsApp.
+  // Opcional: se não definido, as rotas ficam abertas (não recomendado em prod).
+  whatsappSecret: process.env.WHATSAPP_SECRET ?? '',
 }

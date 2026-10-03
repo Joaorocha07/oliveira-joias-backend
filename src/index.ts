@@ -6,6 +6,7 @@ import { categoriasRouter } from './routes/categorias'
 import { acabamentosRouter } from './routes/acabamentos'
 import { configRouter } from './routes/config'
 import { popupsRouter } from './routes/popups'
+import { whatsappRouter } from './routes/whatsapp'
 
 const app = express()
 
@@ -21,6 +22,7 @@ app.use('/api/categorias', categoriasRouter)
 app.use('/api/acabamentos', acabamentosRouter)
 app.use('/api/config', configRouter)
 app.use('/api/popups', popupsRouter)
+app.use('/api/whatsapp', whatsappRouter)
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
