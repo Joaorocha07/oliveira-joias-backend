@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import multer from 'multer'
 import { criarProdutoSchema, atualizarProdutoSchema } from '../schemas/produto'
-import { criarProduto, listarProdutos, buscarProdutoPorSlug, atualizarProduto, excluirProduto } from '../services/produtos'
+import { criarProduto, listarProdutos, buscarProdutoPorSlug, atualizarProduto, excluirProduto, reordenarProdutos } from '../services/produtos'
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -32,9 +32,22 @@ produtosRouter.get('/', async (req, res) => {
   res.json({ data })
 })
 
+// PUT /api/produtos/reordenar — atualiza a ordem de exibição dos produtos
+// Body: { itens: [{ id: string, ordem: number }] }
+produtosRouter.put('/reordenar', async (req, res) => {
+  const { itens } = req.body as { itens?: { id: string; ordem: number }[] }
+  if (!Array.isArray(itens) || itens.length === 0) {
+    res.status(400).json({ error: 'itens é obrigatório e deve ser um array não vazio.' })
+    return
+  }
+  const { error } = await reordenarProdutos(itens)
+  if (error) { res.status(500).json({ error }); return }
+  res.status(204).send()
+})
+
 // GET /api/produtos/:slug — busca um produto ativo pelo slug
 produtosRouter.get('/:slug', async (req, res) => {
-  const { data, error } = await buscarProdutoPorSlug(req.params.slug)
+  const { data, error } = await buscarProdutoPorSlug(req.params.slug!)
   if (error) {
     res.status(500).json({ error })
     return

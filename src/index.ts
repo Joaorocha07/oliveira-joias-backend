@@ -3,6 +3,10 @@ import cors from 'cors'
 import { env } from './lib/env'
 import { produtosRouter } from './routes/produtos'
 import { notasFiscaisRouter } from './routes/notas-fiscais'
+import { categoriasRouter } from './routes/categorias'
+import { acabamentosRouter } from './routes/acabamentos'
+import { configRouter } from './routes/config'
+import { popupsRouter } from './routes/popups'
 import { whatsappRouter } from './routes/whatsapp'
 import { restoreConnections } from './services/whatsapp'
 
@@ -17,6 +21,10 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/produtos', produtosRouter)
 app.use('/api/notas-fiscais', notasFiscaisRouter)
+app.use('/api/categorias', categoriasRouter)
+app.use('/api/acabamentos', acabamentosRouter)
+app.use('/api/config', configRouter)
+app.use('/api/popups', popupsRouter)
 app.use('/api/whatsapp', whatsappRouter)
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

@@ -1,5 +1,6 @@
 import {
   Browsers,
+  Contact,
   DisconnectReason,
   WAMessage,
   WAMessageKey,
@@ -115,8 +116,8 @@ async function openSocket(slot: number, conn: Connection): Promise<void> {
     browser: Browsers.ubuntu('Oliveira Joias'),
     // Sem isso o celular para de receber notificações enquanto o servidor está conectado.
     markOnlineOnConnect: false,
+    // Só a sincronização inicial curta — é por ela que chegam os contatos da agenda.
     syncFullHistory: false,
-    shouldSyncHistoryMessage: () => false,
   })
   if (conn.closing) {
     sock.end(undefined)
@@ -189,6 +190,19 @@ async function openSocket(slot: number, conn: Connection): Promise<void> {
     })().catch((err) => logger.error({ err, slot }, 'Erro na conexão do WhatsApp'))
   })
 
+  // Contatos da agenda do celular: chegam na sincronização inicial ao conectar
+  // (messaging-history.set) e quando a agenda muda (contacts.upsert).
+  sock.ev.on('contacts.upsert', (contacts) => {
+    importContacts(conn, sock, contacts, slot).catch((err) => {
+      console.error(`[WhatsApp slot-${slot}] Erro ao importar contatos:`, err)
+    })
+  })
+  sock.ev.on('messaging-history.set', ({ contacts }) => {
+    importContacts(conn, sock, contacts, slot).catch((err) => {
+      console.error(`[WhatsApp slot-${slot}] Erro ao importar contatos:`, err)
+    })
+  })
+
   sock.ev.on('messages.upsert', ({ messages, type }) => {
     // 'append' = histórico sincronizado ou mensagens enviadas por este servidor.
     if (type !== 'notify') return
@@ -236,18 +250,47 @@ async function handleIncoming(conn: Connection, sock: WASocket, message: WAMessa
     console.warn(`[WhatsApp] Não foi possível descobrir o telefone de ${jid}; contato não salvo.`)
     return
   }
-  await saveLead(conn, toStoredPhone(digits), message.pushName ?? null)
+  await saveLead(conn, toStoredPhone(digits), message.pushName ?? null, true)
 }
 
-let origemWhatsAppId: string | null | undefined
+// Só contatos salvos com nome na agenda (`name`): quem só tem `notify` (nome do
+// próprio perfil) apareceu de grupo/conversa e não é necessariamente cliente.
+async function importContacts(conn: Connection, sock: WASocket, contacts: Contact[], slot: number) {
+  const own = jidDecode(sock.user?.id)?.user
+  let saved = 0
+  for (const c of contacts) {
+    if (!c.name) continue
+    const pnJid = c.phoneNumber ?? (c.id.endsWith('@s.whatsapp.net') ? c.id : null)
+    const digits = pnJid ? jidDecode(pnJid)?.user : null
+    if (!digits || digits === own) continue
+    if (await saveLead(conn, toStoredPhone(digits), c.name)) saved++
+  }
+  if (saved) console.log(`[WhatsApp slot-${slot}] ${saved} contatos da agenda importados como leads.`)
+}
+
+let origemWhatsAppId: string | null = null
 async function getOrigemWhatsAppId(): Promise<string | null> {
-  if (origemWhatsAppId !== undefined) return origemWhatsAppId
+  if (origemWhatsAppId) return origemWhatsAppId
   const { data } = await supabase.from('origens_cliente').select('id').ilike('nome', 'whatsapp').maybeSingle()
-  origemWhatsAppId = (data?.id as string | undefined) ?? null
+  if (data) {
+    origemWhatsAppId = data.id as string
+    return origemWhatsAppId
+  }
+  const { data: created, error } = await supabase
+    .from('origens_cliente')
+    .insert({ nome: 'WhatsApp', ativo: true })
+    .select('id')
+    .single()
+  if (error) {
+    console.error('[WhatsApp] Erro ao criar a origem WhatsApp:', error.message)
+    return null
+  }
+  origemWhatsAppId = created.id as string
   return origemWhatsAppId
 }
 
-async function saveLead(conn: Connection, phone: string, pushName: string | null) {
+// Retorna true quando criou um lead novo (false = já existia).
+async function saveLead(conn: Connection, phone: string, pushName: string | null, fromMessage = false): Promise<boolean> {
   // Compara pelos 8 últimos dígitos: pega o mesmo cliente com ou sem 9, DDD,
   // +55 ou máscara "(34) 99999-9999" no cadastro manual.
   const last8 = phone.replace(/\D/g, '').slice(-8)
@@ -257,7 +300,7 @@ async function saveLead(conn: Connection, phone: string, pushName: string | null
     .or(`whatsapp.ilike.%${last8.slice(0, 4)}%${last8.slice(4)}%,telefone.ilike.%${last8.slice(0, 4)}%${last8.slice(4)}%`)
     .limit(1)
   if (findError) throw new Error(findError.message)
-  if (existing && existing.length > 0) return
+  if (existing && existing.length > 0) return false
 
   const { error } = await supabase.from('clientes').insert({
     nome: pushName?.trim() || `WhatsApp ${phone}`,
@@ -268,8 +311,9 @@ async function saveLead(conn: Connection, phone: string, pushName: string | null
     lead_score: 1,
     ativo: true,
     origem_id: await getOrigemWhatsAppId(),
-    ultimo_contato_em: new Date().toISOString(),
+    ...(fromMessage ? { ultimo_contato_em: new Date().toISOString() } : {}),
     ...(conn.adminId ? { created_by: conn.adminId } : {}),
   })
   if (error) throw new Error(error.message)
+  return true
 }

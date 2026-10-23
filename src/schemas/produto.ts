@@ -1,7 +1,5 @@
 import { z } from 'zod'
 
-export const categoriaProduto = ['alianças', 'anéis', 'correntes', 'serviços'] as const
-
 // multipart/form-data chega sempre como string — campo vazio ("") vira
 // undefined antes da validação, e os campos numéricos são coagidos.
 const optionalText = () =>
@@ -13,16 +11,36 @@ const optionalNumber = () =>
     z.coerce.number().int().positive().optional(),
   )
 
+const optionalDecimal = () =>
+  z.preprocess(
+    (v) => (v === '' || v === undefined || v === null ? undefined : v),
+    z.coerce.number().positive().optional(),
+  )
+
+const faqItem = z.object({ pergunta: z.string(), resposta: z.string() })
+
 export const criarProdutoSchema = z.object({
   nome: z.string().trim().min(1, 'Nome é obrigatório'),
-  categoria: z.enum(categoriaProduto, { error: 'Categoria é obrigatória' }),
+  categoria: z.string().trim().min(1, 'Categoria é obrigatória'),
   linha: optionalText(),
   material: z.string().trim().min(1, 'Material é obrigatório'),
   largura: optionalText(),
   descricao: z.string().trim().min(1, 'Descrição é obrigatória'),
   valor: z.coerce.number().min(0, 'Valor deve ser maior ou igual a zero'),
   parcelas: optionalNumber(),
+  valor_parcela: optionalDecimal(),
   destaque: z.preprocess((v) => v === 'true' || v === true, z.boolean()).default(false),
+  info_produto: optionalText(),
+  voce_sabia: optionalText(),
+  faq: z.preprocess(
+    (v) => {
+      if (!v || v === '') return []
+      if (typeof v === 'string') { try { return JSON.parse(v) } catch { return [] } }
+      if (Array.isArray(v)) return v
+      return []
+    },
+    z.array(faqItem).default([]),
+  ),
 })
 
 export type CriarProdutoInput = z.infer<typeof criarProdutoSchema>
