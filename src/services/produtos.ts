@@ -75,6 +75,7 @@ export type ProdutoCatalogo = {
   imagens: string[]
   destaque: boolean
   ativo: boolean
+  sem_estoque: boolean
   ordem: number | null
   info_produto: string | null
   voce_sabia: string | null
@@ -141,6 +142,23 @@ export async function atualizarProduto(
     .eq('id', id)
     .select('id, slug')
     .single()
+
+  if (error) return { data: null, error: error.message }
+  return { data, error: null }
+}
+
+// Liga/desliga só o "sem estoque", sem mexer no resto do produto (o PUT exige o
+// formulário completo em multipart).
+export async function atualizarEstoqueProduto(
+  id: string,
+  semEstoque: boolean,
+): Promise<{ data: { id: string; sem_estoque: boolean } | null; error: string | null }> {
+  const { data, error } = await supabase
+    .from('catalogo_produtos')
+    .update({ sem_estoque: semEstoque })
+    .eq('id', id)
+    .select('id, sem_estoque')
+    .maybeSingle()
 
   if (error) return { data: null, error: error.message }
   return { data, error: null }

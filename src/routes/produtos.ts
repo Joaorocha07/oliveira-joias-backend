@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import multer from 'multer'
 import { criarProdutoSchema, atualizarProdutoSchema } from '../schemas/produto'
-import { criarProduto, listarProdutos, buscarProdutoPorSlug, atualizarProduto, excluirProduto, reordenarProdutos } from '../services/produtos'
+import { criarProduto, listarProdutos, buscarProdutoPorSlug, atualizarProduto, atualizarEstoqueProduto, excluirProduto, reordenarProdutos } from '../services/produtos'
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -113,6 +113,27 @@ produtosRouter.put('/:id', upload.array('imagens', 10), async (req, res) => {
     console.error(err)
     res.status(500).json({ error: err instanceof Error ? err.message : 'Erro ao atualizar produto' })
   }
+})
+
+// PATCH /api/produtos/:id/estoque — marca/desmarca o produto como sem estoque
+// Body: { sem_estoque: boolean }
+produtosRouter.patch('/:id/estoque', async (req, res) => {
+  const { sem_estoque } = req.body as { sem_estoque?: unknown }
+  if (typeof sem_estoque !== 'boolean') {
+    res.status(400).json({ error: 'sem_estoque é obrigatório e deve ser true ou false.' })
+    return
+  }
+
+  const { data, error } = await atualizarEstoqueProduto(req.params.id!, sem_estoque)
+  if (error) {
+    res.status(500).json({ error })
+    return
+  }
+  if (!data) {
+    res.status(404).json({ error: 'Produto não encontrado' })
+    return
+  }
+  res.json({ data })
 })
 
 // DELETE /api/produtos/:id
