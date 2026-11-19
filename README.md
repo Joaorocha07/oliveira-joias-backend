@@ -74,6 +74,31 @@ curl -X POST http://localhost:3001/api/produtos \
   -F "imagens=@./foto2.jpg"
 ```
 
+### `POST /api/leads`
+
+Cadastro de lead feito pelo pop-up do site (tipo `cadastro` em Pop-ups do Site). Público, limitado a 5 cadastros por IP a cada 15 min. Requer a migração `013_leads_site.sql`.
+
+`application/json`: `{ "nome": string, "telefone": string, "email": string }`
+
+- Se já existir alguém com o mesmo e-mail ou telefone (8 últimos dígitos), **não duplica**: completa só os campos vazios e registra na linha do tempo.
+- Senão, cria em `clientes` com origem **Site**, status `novo_lead`.
+
+Resposta `201`: `{ "data": { "existente": boolean, "primeiro_nome": string, "cupom_codigo": string | null } }`. O código do cupom só é revelado aqui (fica de fora de `GET /api/popups/ativos`).
+
+### Contas de clientes do site (`/api/conta`)
+
+Requer a migração `014_contas_site_cupons_pedidos.sql` e a variável **`SITE_AUTH_SECRET`** (texto aleatório com 32+ caracteres; ex.: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`). As contas dos clientes **não** usam o Supabase Auth (que é o login da equipe): a senha é guardada com scrypt e a sessão é um token assinado com HMAC. O portfólio guarda o token em cookie httpOnly e chama estas rotas pelas suas rotas `/api/conta/*`.
+
+| Rota | Auth | Descrição |
+|---|---|---|
+| `POST /api/conta/cadastro` | — | `{ nome, telefone, email, senha }` — cria a conta (reaproveita o cliente pelo e-mail/telefone) e o cupom de boas-vindas. Devolve `{ token }`. |
+| `POST /api/conta/login` | — | `{ email, senha }` → `{ token }` |
+| `GET /api/conta` | Bearer do cliente | Perfil, cupons ativos, pedidos do site e — só se a loja verificou a conta — compras da loja. |
+| `PUT /api/conta` | Bearer do cliente | Atualiza nome, telefone, cidade, nascimento. |
+| `PUT /api/conta/senha` | Bearer do cliente | `{ senha_atual, nova_senha }` |
+| `POST /api/conta/pedidos` | Bearer do cliente | `{ itens: [{ slug, quantidade, observacao? }], cupom_id?, observacoes? }` — preços recalculados pelo catálogo. |
+| `POST /api/conta/equipe/redefinir-senha` | Bearer do Supabase (equipe) | `{ cliente_id }` → `{ senha_temporaria }` |
+
 ## Notas
 
 - Sem autenticação nos endpoints por enquanto (decisão explícita) — qualquer requisição para a URL pode criar/ler produtos. Se o serviço for exposto publicamente, considerar adicionar uma API key.

@@ -29,6 +29,9 @@ export const env = {
   focusNfeAmbiente: focusNfeAmbiente(),
   // Segredo compartilhado com o frontend (header x-whatsapp-secret). Opcional.
   whatsappSecret: process.env.WHATSAPP_SECRET,
+  // Assina as sessões das contas de clientes do site (mín. 32 caracteres). Opcional
+  // na inicialização; validado só quando alguém faz login/cadastro (src/lib/site-auth.ts).
+  siteAuthSecret: process.env.SITE_AUTH_SECRET,
   focusNfeBaseUrl:
     focusNfeAmbiente() === 'producao'
       ? 'https://api.focusnfe.com.br'

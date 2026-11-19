@@ -8,6 +8,8 @@ import { acabamentosRouter } from './routes/acabamentos'
 import { configRouter } from './routes/config'
 import { popupsRouter } from './routes/popups'
 import { whatsappRouter } from './routes/whatsapp'
+import { leadsRouter } from './routes/leads'
+import { contaRouter } from './routes/conta'
 import { restoreConnections } from './services/whatsapp'
 
 const app = express()
@@ -26,6 +28,8 @@ app.use('/api/acabamentos', acabamentosRouter)
 app.use('/api/config', configRouter)
 app.use('/api/popups', popupsRouter)
 app.use('/api/whatsapp', whatsappRouter)
+app.use('/api/leads', leadsRouter)
+app.use('/api/conta', contaRouter)
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
