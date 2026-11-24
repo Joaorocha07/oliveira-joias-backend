@@ -1,7 +1,8 @@
 import { Router } from 'express'
 import multer from 'multer'
-import { criarProdutoSchema, atualizarProdutoSchema } from '../schemas/produto'
-import { criarProduto, listarProdutos, buscarProdutoPorSlug, atualizarProduto, atualizarEstoqueProduto, excluirProduto, reordenarProdutos } from '../services/produtos'
+import { criarProdutoSchema, atualizarProdutoSchema, atualizarArosSchema } from '../schemas/produto'
+import { exigirEquipe } from '../lib/site-auth'
+import { criarProduto, listarProdutos, buscarProdutoPorSlug, atualizarProduto, atualizarEstoqueProduto, atualizarArosProduto, buscarArosDisponiveis, excluirProduto, reordenarProdutos } from '../services/produtos'
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -43,6 +44,16 @@ produtosRouter.put('/reordenar', async (req, res) => {
   const { error } = await reordenarProdutos(itens)
   if (error) { res.status(500).json({ error }); return }
   res.status(204).send()
+})
+
+// GET /api/produtos/:slug/aros — aros disponíveis agora (o site busca sem cache,
+// porque a página do produto fica em cache por até 1h).
+produtosRouter.get('/:slug/aros', async (req, res) => {
+  const { data, error } = await buscarArosDisponiveis(req.params.slug!)
+  if (error) { res.status(500).json({ error }); return }
+  if (!data) { res.status(404).json({ error: 'Produto não encontrado' }); return }
+  res.set('Cache-Control', 'no-store')
+  res.json({ data })
 })
 
 // GET /api/produtos/:slug — busca um produto ativo pelo slug
@@ -133,6 +144,20 @@ produtosRouter.patch('/:id/estoque', async (req, res) => {
     res.status(404).json({ error: 'Produto não encontrado' })
     return
   }
+  res.json({ data })
+})
+
+// PATCH /api/produtos/:id/aros — configura os aros do produto (só equipe logada no sistema)
+// Body: { aros_par: boolean, aros: [{ aro: number, estoque: number }] }
+produtosRouter.patch('/:id/aros', exigirEquipe, async (req, res) => {
+  const parsed = atualizarArosSchema.safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Dados inválidos', detalhes: parsed.error.flatten() })
+    return
+  }
+  const { data, error } = await atualizarArosProduto(req.params.id!, parsed.data)
+  if (error) { res.status(500).json({ error }); return }
+  if (!data) { res.status(404).json({ error: 'Produto não encontrado' }); return }
   res.json({ data })
 })
 

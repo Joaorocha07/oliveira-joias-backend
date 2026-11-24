@@ -64,3 +64,23 @@ export const atualizarProdutoSchema = criarProdutoSchema.extend({
 })
 
 export type AtualizarProdutoInput = z.infer<typeof atualizarProdutoSchema>
+
+// Aros (numerações) do produto no site. Cada aro aparece uma vez; estoque 0 =
+// aparece riscado. Lista vazia desliga a seleção de aro no site.
+export const ARO_MIN = 1
+export const ARO_MAX = 40
+
+export const atualizarArosSchema = z.object({
+  aros_par: z.boolean(),
+  aros: z
+    .array(
+      z.object({
+        aro: z.number().int().min(ARO_MIN).max(ARO_MAX),
+        estoque: z.number().int().min(0).max(9999),
+      }),
+    )
+    .max(ARO_MAX)
+    .refine((lista) => new Set(lista.map((a) => a.aro)).size === lista.length, 'Aro repetido na lista'),
+})
+
+export type AtualizarArosInput = z.infer<typeof atualizarArosSchema>

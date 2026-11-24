@@ -36,6 +36,14 @@ Busca um produto ativo pelo slug. `404` se não existir.
 
 Resposta `200`: `{ "data": ProdutoCatalogo }`
 
+### `GET /api/produtos/:slug/aros`
+
+Aros disponíveis do produto agora (sem cache): `{ aros_par, aros: [{ aro, qtd }] }` — `qtd` vai até 2. Requer a migração `015_catalogo_produtos_aros.sql`.
+
+### `PATCH /api/produtos/:id/aros` (equipe)
+
+Configura os aros do produto. Header `Authorization: Bearer <token do Supabase Auth do sistema>`. Body: `{ "aros_par": true, "aros": [{ "aro": 16, "estoque": 2 }] }`. Lista vazia desliga a seleção de aro no site. Pedidos do site (`POST /api/conta/pedidos`) passam a exigir `aros` nos itens desses produtos e conferem o estoque.
+
 ### `POST /api/produtos`
 
 `multipart/form-data`

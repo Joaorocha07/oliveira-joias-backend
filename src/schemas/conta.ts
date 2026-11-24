@@ -46,6 +46,8 @@ export const criarPedidoSchema = z.object({
         slug: z.string().trim().min(1),
         quantidade: z.number().int().min(1).max(20),
         observacao: z.string().trim().max(200).optional(),
+        // Aros escolhidos no site (1 ou 2, conforme o produto).
+        aros: z.array(z.number().int().min(1).max(40)).max(2).optional(),
       }),
     )
     .min(1, 'Seu carrinho está vazio')

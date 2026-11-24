@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { uploadImagemProduto } from '../lib/r2'
-import type { CriarProdutoInput, AtualizarProdutoInput } from '../schemas/produto'
+import type { CriarProdutoInput, AtualizarProdutoInput, AtualizarArosInput } from '../schemas/produto'
 
 function gerarSlug(nome: string): string {
   return nome
@@ -60,6 +60,8 @@ export async function criarProduto(
   return { data, error: null }
 }
 
+export type AroEstoque = { aro: number; estoque: number }
+
 export type ProdutoCatalogo = {
   id: string
   nome: string
@@ -76,6 +78,8 @@ export type ProdutoCatalogo = {
   destaque: boolean
   ativo: boolean
   sem_estoque: boolean
+  aros: AroEstoque[]
+  aros_par: boolean
   ordem: number | null
   info_produto: string | null
   voce_sabia: string | null
@@ -182,4 +186,40 @@ export async function buscarProdutoPorSlug(
 
   if (error) return { data: null, error: error.message }
   return { data, error: null }
+}
+
+// Salva os aros do produto (lista ordenada). Só a equipe chama (rota protegida).
+export async function atualizarArosProduto(
+  id: string,
+  input: AtualizarArosInput,
+): Promise<{ data: { id: string; aros: AroEstoque[]; aros_par: boolean } | null; error: string | null }> {
+  const aros = [...input.aros].sort((a, b) => a.aro - b.aro)
+  const { data, error } = await supabase
+    .from('catalogo_produtos')
+    .update({ aros, aros_par: input.aros_par })
+    .eq('id', id)
+    .select('id, aros, aros_par')
+    .maybeSingle()
+
+  if (error) return { data: null, error: error.message }
+  return { data, error: null }
+}
+
+// Disponibilidade dos aros para o site, sem cache. Não expõe o estoque exato:
+// "qtd" vai até 2 (o suficiente para saber se dá para escolher o mesmo aro
+// nas duas alianças do par).
+export async function buscarArosDisponiveis(
+  slug: string,
+): Promise<{ data: { aros: { aro: number; qtd: number }[]; aros_par: boolean } | null; error: string | null }> {
+  const { data, error } = await supabase
+    .from('catalogo_produtos')
+    .select('aros, aros_par')
+    .eq('slug', slug)
+    .eq('ativo', true)
+    .maybeSingle()
+
+  if (error) return { data: null, error: error.message }
+  if (!data) return { data: null, error: null }
+  const aros = ((data.aros ?? []) as AroEstoque[]).map((a) => ({ aro: a.aro, qtd: Math.min(Math.max(a.estoque, 0), 2) }))
+  return { data: { aros, aros_par: data.aros_par !== false }, error: null }
 }
